@@ -1,0 +1,8 @@
+---
+- name: Network Getting Started First Playbook
+  connection: ansible.netcommon.network_cli
+  hosts: all
+  tasks:
+    - name: Display the config
+      debug:
+        msg: "Hello World"
