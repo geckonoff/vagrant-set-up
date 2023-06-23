@@ -1,8 +1,134 @@
 ---
-- name: Network Getting Started First Playbook
-  connection: ansible.netcommon.network_cli
-  hosts: all
+- hosts: all
+  become: true
+  vars:
+    prometheus_image: prom/prometheus
+
   tasks:
-    - name: Display the config
-      debug:
-        msg: "Hello World"
+    - name: Install aptitude
+      apt:
+        name: aptitude
+        state: latest
+        update_cache: true
+
+    - name: Install required system packages
+      apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - python3-pip
+          - virtualenv
+          - python3-setuptools
+        state: latest
+        update_cache: true
+
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Update apt and install docker-ce
+      apt:
+        name: docker-ce
+        state: latest
+        update_cache: true
+
+    - name: Install Docker Module for Python
+      pip:
+        name: docker
+
+    - name: Create the docker group
+      group:
+        name: docker
+        state: present
+
+    - name: Add vagrant user to the docker group
+      user: 
+        name: vagrant
+        group: docker
+        append: yes
+
+    - name: Create dir with Dockerfile
+      file:
+        path: /opt/prometheus
+        owner: vagrant
+        group: docker
+        state: directory
+        mode: '0755'
+      tags:
+      - prometheus
+
+    #- name: Create Prometheus Dockerfile
+    #  template:
+    #    src: prometheus_dfile.j2
+    #    dest: /opt/prometheus/Dockerfile
+    #  tags:
+    #  - prometheus
+
+    - name: Create prometheus.yml
+      template:
+        src: prometheus_yml.j2
+        dest: /opt/prometheus/prometheus.yml
+      notify:
+    #    - build new image
+        - restart prometheus
+      tags:
+      - prometheus
+
+    #- name: Build an image and push it to a private repo
+    #  community.docker.docker_image:
+    #    build:
+    #      path: /opt/prometheus/
+    #    name: my-prometheus
+    #    tag: my-prometheus
+    #    source: build
+    #  tags:
+    #  - prometheus
+
+    - name: Start Prometheus
+      docker_container:
+        name: my_prometheus
+        state: started
+        image: "{{ prometheus_image }}"
+        ports:
+          - "9090:9090"
+        volumes:
+          - /opt/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+          - prometheus-data:/prometheus
+      tags:
+      - prometheus
+
+  handlers:
+    #- name: build new image
+    #  community.docker.docker_image:
+    #    state: present
+    #    build:
+    #      path: /opt/prometheus/
+    #      rm: true
+    #    name: my-prometheus
+    #    tag: my-prometheus
+    #    source: build
+    #    force_source: true
+    #  tags:
+    #  - prometheus
+    
+    - name: restart prometheus
+      docker_container:
+        name: my_prometheus
+        restart: true
+        state: started
+        image: "{{ prometheus_image }}"
+        ports:
+          - "9090:9090"
+        volumes:
+          - /opt/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+          - prometheus-data:/prometheus
+      tags:
+      - prometheus

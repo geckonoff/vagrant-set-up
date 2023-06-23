@@ -2,8 +2,11 @@
 Vagrant.require_version ">= 1.8.0"
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "ubuntu/bionic64"
-
+  config.vm.define "docker" do |docker|
+    docker.vm.box = "ubuntu/focal64"
+  end
+  
+  config.vm.network "forwarded_port", guest: 9090, host: 9090
   config.vm.provider "virtualbox" do |v|
     v.customize ["modifyvm", :id, "--uart1", "0x3F8", "4"]
     v.customize ["modifyvm", :id, "--uartmode1", "file", File::NULL]
@@ -14,5 +17,6 @@ Vagrant.configure("2") do |config|
     ansible.verbose = "v"
 #    ansible.playbook = "/Users/ash/MainStream/vagrant/vagrant/playbook.yml"
     ansible.playbook = "vagrant/playbook.yml"
+    ansible.tags = "prometheus"
   end
 end
