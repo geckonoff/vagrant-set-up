@@ -3,6 +3,7 @@
   become: true
   vars:
     prometheus_image: prom/prometheus
+    grafana_image: grafana/grafana:latest
 
   tasks:
     - name: Install aptitude
@@ -104,6 +105,18 @@
           - prometheus-data:/prometheus
       tags:
       - prometheus
+
+    - name: Start Grafana
+      docker_container:
+        name: my_grafana
+        state: started
+        image: "{{ grafana_image }}"
+        ports:
+          - "3000:3000"
+        volumes:
+          - grafana-data:/var/lib/grafana
+      tags:
+      - grafana
 
   handlers:
     #- name: build new image
